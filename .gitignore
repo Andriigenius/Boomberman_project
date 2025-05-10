@@ -1,0 +1,21 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Компиляция
+x64/
+Debug/
+Release/
+*.obj
+*.exe
+*.pdb
+*.ilk
+
+# IDE и временные файлы
+*.log
+*.VC.db
+*.ipch
+*.tlog
+*.opensdf
+*.sdf
