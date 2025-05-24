@@ -14,11 +14,13 @@ private:
     sf::Vector2f previousPosition;
 
 public:
+    bool isDead = false;
     Player(sf::Vector2f startPos, sf::Vector2f size);
     void Moveset();
     void update(float dt);
     void draw(sf::RenderWindow& window) override;
     sf::Vector2i getTilePosition() const override;
     void handleCollision(const std::vector<std::string>& map);
+    sf::FloatRect getBounds() const;
 };
 

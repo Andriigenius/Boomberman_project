@@ -20,6 +20,6 @@ public:
     void update(float dt) override;
     void draw(sf::RenderWindow& window) override;
     sf::Vector2i getTilePosition() const override;
-
+    sf::FloatRect getBounds() const;
     bool isDead = false;
 };

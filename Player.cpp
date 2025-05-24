@@ -19,34 +19,64 @@ void Player::Moveset() {                   //движение
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) direction.x = 1.f;
 }
 
-void Player::update(float dt) {     // плавное передвижение
+void Player::update(float dt) {
     lastDt = dt;
     previousPosition = position;
-    position += direction * speed * dt;
 }
 
-void Player::handleCollision(const std::vector<std::string>& map) {           //проверка на столкновения
-    sf::Vector2f size = shape.getSize();
 
-    // Проверка 4 углов
-    sf::Vector2f points[4] = {
-        position,
-        position + sf::Vector2f(size.x, 0.f),
-        position + sf::Vector2f(0.f, size.y),
-        position + size
-    };
+void Player::handleCollision(const std::vector<std::string>& map) {
+    sf::FloatRect bounds = shape.getGlobalBounds();
 
-    for (auto& p : points) {
-        int x = static_cast<int>(p.x) / TILE_SIZE;
-        int y = static_cast<int>(p.y) / TILE_SIZE;
+    // Попытка движения по X
+    sf::Vector2f tryX = position;
+    tryX.x += direction.x * speed * lastDt;
+    sf::FloatRect nextBoundsX(tryX, shape.getSize());
 
-        if (y < 0 || y >= map.size() || x < 0 || x >= map[y].size()) continue;
-
-        if (map[y][x] != ' ') {
-            position = previousPosition; // откат
-            break;
+    bool blockedX = false;
+    for (int y = 0; y < map.size(); ++y) {
+        for (int x = 0; x < map[y].size(); ++x) {
+            if (map[y][x] != ' ') {
+                sf::FloatRect tileRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                if (nextBoundsX.intersects(tileRect)) {
+                    blockedX = true;
+                    break;
+                }
+            }
         }
+        if (blockedX) break;
     }
+
+    if (!blockedX)
+        position.x = tryX.x;
+
+    // Попытка движения по Y
+    sf::Vector2f tryY = position;
+    tryY.y += direction.y * speed * lastDt;
+    sf::FloatRect nextBoundsY(tryY, shape.getSize());
+
+    bool blockedY = false;
+    for (int y = 0; y < map.size(); ++y) {
+        for (int x = 0; x < map[y].size(); ++x) {
+            if (map[y][x] != ' ') {
+                sf::FloatRect tileRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                if (nextBoundsY.intersects(tileRect)) {
+                    blockedY = true;
+                    break;
+                }
+            }
+        }
+        if (blockedY) break;
+    }
+
+    if (!blockedY)
+        position.y = tryY.y;
+}
+
+
+sf::FloatRect Player::getBounds() const
+{
+        return shape.getGlobalBounds();
 }
 
 void Player::draw(sf::RenderWindow& window) {

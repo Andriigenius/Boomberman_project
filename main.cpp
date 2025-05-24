@@ -35,7 +35,7 @@ std::vector<std::string> map = {
 
 std::vector<std::unique_ptr<Entity>> entities;
 
-void destroyMap(sf::Vector2i center) {
+void destroyMap(sf::Vector2i center, Player& player) {
     int radius = 1;
     std::vector<sf::Vector2i> explosionTiles;
 
@@ -44,11 +44,23 @@ void destroyMap(sf::Vector2i center) {
         explosionTiles.push_back({ x, y });
         entities.push_back(std::make_unique<Explosion>(pos, TILE_SIZE));
         };
-
+    // Центр
     addExplosion(center.x, center.y);
 
-    for (int dx = -radius; dx <= radius; ++dx) {
-        if (dx == 0) continue;
+    // Влево
+    for (int dx = 1; dx <= radius; ++dx) {
+        int x = center.x - dx;
+        int y = center.y;
+        if (map[y][x] == '#') break;
+        addExplosion(x, y);
+        if (map[y][x] == '*') {
+            map[y][x] = ' ';
+            break;
+        }
+    }
+
+    // Вправо
+    for (int dx = 1; dx <= radius; ++dx) {
         int x = center.x + dx;
         int y = center.y;
         if (map[y][x] == '#') break;
@@ -59,8 +71,21 @@ void destroyMap(sf::Vector2i center) {
         }
     }
 
-    for (int dy = -radius; dy <= radius; ++dy) {
-        if (dy == 0) continue;
+
+    // ⬆ Вверх
+    for (int dy = 1; dy <= radius; ++dy) {
+        int x = center.x;
+        int y = center.y - dy;
+        if (map[y][x] == '#') break;
+        addExplosion(x, y);
+        if (map[y][x] == '*') {
+            map[y][x] = ' ';
+            break;
+        }
+    }
+
+    // ⬇ Вниз
+    for (int dy = 1; dy <= radius; ++dy) {
         int x = center.x;
         int y = center.y + dy;
         if (map[y][x] == '#') break;
@@ -71,18 +96,22 @@ void destroyMap(sf::Vector2i center) {
         }
     }
 
-    // Убиваем врагов во ВСЕХ клетках взрыва
-    for (auto& e : entities) {
-        if (auto* enemy = dynamic_cast<Enemy*>(e.get())) {
-            if (enemy->isDead) continue;
+    for (auto& tile : explosionTiles) {
+        for (auto& e : entities) {
+            if (auto* enemy = dynamic_cast<Enemy*>(e.get())) {
+                sf::FloatRect enemyRect = enemy->getBounds();
+                sf::FloatRect tileRect(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
-            for (auto& tile : explosionTiles) {
-                if (enemy->getTilePosition() == tile) {
+                if (!enemy->isDead && enemyRect.intersects(tileRect))
                     enemy->isDead = true;
-                    break;
-                }
+
             }
         }
+
+        sf::FloatRect tileRect(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+        if (player.getBounds().intersects(tileRect))
+            player.isDead = true;
     }
 }
 
@@ -98,16 +127,36 @@ int main() {
     sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen); // 13x7 tiles
     window.setFramerateLimit(60);
 
-    generateRandomBlocks(0.3f); // рандомная догенирация * (разрушаемых блоков) в вектор map на место " ". 
+    generateRandomBlocks(0.23f); // рандомная догенирация * (разрушаемых блоков) в вектор map на место " ". 
 
     Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 40.f, 40.f });// определение позиции стартовой для игрока
 
+    for (int i = 0; i < 6; i++) {
+        sf::Vector2f enemySpawnPos;
+        bool found = false;
 
-    entities.push_back(std::make_unique<Enemy>(sf::Vector2f(5 * TILE_SIZE, 5 * TILE_SIZE), map));
+        while (!found) {
+            int x = rand() % map[0].size();
+            int y = rand() % map.size();
+
+            if (map[y][x] == ' ') {
+                enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
+                found = true;
+            }
+        }
+
+        entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
+    }
 
     float bombCooldown = 2.0f;
     float bombCooldownTimer = 0.0f;
 
+
+    sf::Font font;
+    font.loadFromFile("fonts/ARIAL.TTF");
+    sf::Text loseText("GAME OVER", font, 100);
+    loseText.setFillColor(sf::Color::Red);
+    loseText.setPosition(500, 400);
 
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
@@ -122,15 +171,24 @@ int main() {
             bombCooldownTimer += dt;
             
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
-                sf::Vector2f bombPos = {
-                    static_cast<float>(player.getTilePosition().x * TILE_SIZE),
-                    static_cast<float>(player.getTilePosition().y * TILE_SIZE)
+                sf::Vector2f center = {
+                    player.getBounds().left + player.getBounds().width / 2.f,
+                    player.getBounds().top + player.getBounds().height / 2.f
                 };
+
+                    sf::Vector2i tile = sf::Vector2i(
+                        static_cast<int>(center.x) / TILE_SIZE,
+                        static_cast<int>(center.y) / TILE_SIZE
+                    );
+
+                    sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
+
+                
 
                 entities.push_back(std::make_unique<Bomb>(
                     bombPos, 2.0f, TILE_SIZE,
-                    [](sf::Vector2i center) {
-                        destroyMap(center);
+                    [&player](sf::Vector2i center) {
+                        destroyMap(center, player);
                     }
                 ));
 
@@ -164,6 +222,8 @@ int main() {
         for (auto& e : entities)
             e->draw(window);
         drawMap(window);
+        if (player.isDead)
+            window.draw(loseText);
         window.display();
     }
 
