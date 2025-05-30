@@ -2,6 +2,7 @@
  
 extern const int TILE_SIZE; //гдето в коде имееться данная перменная наприммер мейн.спп
 
+
 Player::Player(sf::Vector2f startPos, sf::Vector2f size) {
     position = startPos;
     previousPosition = startPos;
@@ -86,4 +87,11 @@ void Player::draw(sf::RenderWindow& window) {
 
 sf::Vector2i Player::getTilePosition() const {
     return sf::Vector2i(position.x / TILE_SIZE, position.y / TILE_SIZE);
+}
+
+
+void Player::setPos(sf::Vector2f pos)
+{
+    position = pos;
+    shape.setPosition(position);
 }

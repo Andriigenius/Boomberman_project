@@ -7,13 +7,14 @@
 class Player : public Entity {
 private:
     sf::RectangleShape shape;
-    sf::Vector2f position;
     sf::Vector2f direction;
+    sf::Vector2f position;
     float speed;
     float lastDt = 0.f;
     sf::Vector2f previousPosition;
 
 public:
+    void setPos(sf::Vector2f pos);
     bool isDead = false;
     Player(sf::Vector2f startPos, sf::Vector2f size);
     void Moveset();

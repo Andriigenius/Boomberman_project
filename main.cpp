@@ -2,8 +2,8 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <string>
-#include <algorithm> // для std::remove_if
-
+#include <algorithm>
+#include <random>
 
 #include "MapDrawer.h"
 #include "Player.h"
@@ -11,6 +11,27 @@
 #include "Enemy.h"
 #include "Explosion.h"
 const int TILE_SIZE = 60;
+
+const std::vector<std::string> baseMap = {
+    "################################",
+    "################################",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "# # # # # # # # # # # # # # # ##",
+    "#                             ##",
+    "################################"
+};
 
 std::vector<std::string> map = {
     "################################",
@@ -34,123 +55,120 @@ std::vector<std::string> map = {
 };
 
 std::vector<std::unique_ptr<Entity>> entities;
+sf::Vector2i portalPos = { -1, -1 }; // Изначально портала нет
+int destructibleBlocksLeft = 0;      // Счетчик оставшихся разрушаемых блоков
+
+void drawPortal(sf::RenderWindow& window) {
+    if (portalPos.x == -1) return;
+    sf::RectangleShape shape(sf::Vector2f(TILE_SIZE, TILE_SIZE));
+    shape.setFillColor(sf::Color::Magenta);
+    shape.setPosition(portalPos.x * TILE_SIZE, portalPos.y * TILE_SIZE);
+    window.draw(shape);
+}
 
 void destroyMap(sf::Vector2i center, Player& player) {
     int radius = 1;
     std::vector<sf::Vector2i> explosionTiles;
+    std::vector<sf::Vector2i> destroyed;
 
     auto addExplosion = [&](int x, int y) {
         sf::Vector2f pos(x * TILE_SIZE, y * TILE_SIZE);
         explosionTiles.push_back({ x, y });
         entities.push_back(std::make_unique<Explosion>(pos, TILE_SIZE));
         };
-    // Центр
+
+    auto tryDestroy = [&](int x, int y) {
+        if (map[y][x] == '#') return false;
+        addExplosion(x, y);
+        if (map[y][x] == '*') {
+            map[y][x] = ' ';
+            --destructibleBlocksLeft;
+            destroyed.push_back({ x, y });
+            return false;
+        }
+        return true;
+        };
+
     addExplosion(center.x, center.y);
+    tryDestroy(center.x, center.y);
 
-    // Влево
     for (int dx = 1; dx <= radius; ++dx) {
-        int x = center.x - dx;
-        int y = center.y;
-        if (map[y][x] == '#') break;
-        addExplosion(x, y);
-        if (map[y][x] == '*') {
-            map[y][x] = ' ';
-            break;
-        }
+        if (!tryDestroy(center.x - dx, center.y)) break;
     }
-
-    // Вправо
     for (int dx = 1; dx <= radius; ++dx) {
-        int x = center.x + dx;
-        int y = center.y;
-        if (map[y][x] == '#') break;
-        addExplosion(x, y);
-        if (map[y][x] == '*') {
-            map[y][x] = ' ';
-            break;
-        }
+        if (!tryDestroy(center.x + dx, center.y)) break;
     }
-
-
-    // ⬆ Вверх
     for (int dy = 1; dy <= radius; ++dy) {
-        int x = center.x;
-        int y = center.y - dy;
-        if (map[y][x] == '#') break;
-        addExplosion(x, y);
-        if (map[y][x] == '*') {
-            map[y][x] = ' ';
-            break;
-        }
+        if (!tryDestroy(center.x, center.y - dy)) break;
     }
-
-    // ⬇ Вниз
     for (int dy = 1; dy <= radius; ++dy) {
-        int x = center.x;
-        int y = center.y + dy;
-        if (map[y][x] == '#') break;
-        addExplosion(x, y);
-        if (map[y][x] == '*') {
-            map[y][x] = ' ';
-            break;
-        }
+        if (!tryDestroy(center.x, center.y + dy)) break;
     }
 
     for (auto& tile : explosionTiles) {
+        sf::FloatRect tileRect(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
         for (auto& e : entities) {
             if (auto* enemy = dynamic_cast<Enemy*>(e.get())) {
-                sf::FloatRect enemyRect = enemy->getBounds();
-                sf::FloatRect tileRect(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-
-                if (!enemy->isDead && enemyRect.intersects(tileRect))
+                if (!enemy->isDead && enemy->getBounds().intersects(tileRect))
                     enemy->isDead = true;
-
             }
         }
-
-        sf::FloatRect tileRect(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
         if (player.getBounds().intersects(tileRect))
             player.isDead = true;
     }
+
+    if (!destroyed.empty() && portalPos.x == -1) {
+        static std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.f, 1.f);
+
+        float baseChance = 0.05f; // 5%
+        float chance = baseChance;
+
+        for (size_t i = 0; i < destroyed.size(); ++i) {
+            bool isLast = (i == destroyed.size() - 1);
+
+            if (dist(rng) <= chance || isLast) {
+                portalPos = destroyed[i];
+                break;
+            }
+
+            chance += 0.1f; // Повышаем шанс к следующему блоку
+        }
+    }
 }
 
-
-
-
-
-
 int main() {
-
     sf::Clock clock;
-
-    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen); // 13x7 tiles
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
+    map = baseMap;
+    generateRandomBlocks(0.3333f);
 
-    generateRandomBlocks(0.23f); // рандомная догенирация * (разрушаемых блоков) в вектор map на место " ". 
+    destructibleBlocksLeft = 0;
+    for (auto& row : map)
+        for (char c : row)
+            if (c == '*') ++destructibleBlocksLeft;
 
-    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 40.f, 40.f });// определение позиции стартовой для игрока
+    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 56.f, 56.f });
 
     for (int i = 0; i < 6; i++) {
         sf::Vector2f enemySpawnPos;
         bool found = false;
-
         while (!found) {
             int x = rand() % map[0].size();
             int y = rand() % map.size();
-
             if (map[y][x] == ' ') {
                 enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
                 found = true;
             }
         }
-
         entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
     }
 
     float bombCooldown = 2.0f;
     float bombCooldownTimer = 0.0f;
-
 
     sf::Font font;
     font.loadFromFile("fonts/ARIAL.TTF");
@@ -160,49 +178,70 @@ int main() {
 
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
-        if (dt > 0.1f) dt = 0.1f; // максимум 100 мс
-
+        if (dt > 0.1f) dt = 0.1f;
 
         sf::Event event;
         while (window.pollEvent(event))
-            if (event.type == sf::Event::Closed || ( event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape )  )
+            if (event.type == sf::Event::Closed || (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
                 window.close();
 
-            bombCooldownTimer += dt;
-            
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
-                sf::Vector2f center = {
-                    player.getBounds().left + player.getBounds().width / 2.f,
-                    player.getBounds().top + player.getBounds().height / 2.f
-                };
+        bombCooldownTimer += dt;
 
-                    sf::Vector2i tile = sf::Vector2i(
-                        static_cast<int>(center.x) / TILE_SIZE,
-                        static_cast<int>(center.y) / TILE_SIZE
-                    );
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
+            sf::Vector2f center = {
+                player.getBounds().left + player.getBounds().width / 2.f,
+                player.getBounds().top + player.getBounds().height / 2.f
+            };
 
-                    sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
+            sf::Vector2i tile = sf::Vector2i(
+                static_cast<int>(center.x) / TILE_SIZE,
+                static_cast<int>(center.y) / TILE_SIZE
+            );
 
-                
+            sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
 
-                entities.push_back(std::make_unique<Bomb>(
-                    bombPos, 2.0f, TILE_SIZE,
-                    [&player](sf::Vector2i center) {
-                        destroyMap(center, player);
+            entities.push_back(std::make_unique<Bomb>(
+                bombPos, 2.0f, TILE_SIZE,
+                [&player](sf::Vector2i center) {
+                    destroyMap(center, player);
+                }
+            ));
+
+            bombCooldownTimer = 0.f;
+        }
+
+        if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
+            portalPos = { -1, -1 };
+            entities.clear();
+            map = baseMap;
+            generateRandomBlocks(0.3333f);
+
+            destructibleBlocksLeft = 0;
+            for (auto& row : map)
+                for (char c : row)
+                    if (c == '*') ++destructibleBlocksLeft;
+
+            player.setPos({ 2 * TILE_SIZE, 2 * TILE_SIZE });
+
+            for (int i = 0; i < 6; i++) {
+                sf::Vector2f enemySpawnPos;
+                bool found = false;
+                while (!found) {
+                    int x = rand() % map[0].size();
+                    int y = rand() % map.size();
+                    if (map[y][x] == ' ') {
+                        enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
+                        found = true;
                     }
-                ));
-
-                bombCooldownTimer = 0.f; // сброс кулдауна
+                }
+                entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
             }
+        }
 
-
-
-
-        
-
-        player.Moveset();     // обработка ввода
-        player.update(dt);           // общая логика
+        player.Moveset();
+        player.update(dt);
         player.handleCollision(map);
+
         for (auto& e : entities)
             e->update(dt);
 
@@ -214,11 +253,10 @@ int main() {
             }),
             entities.end());
 
-
-
         window.clear();
-        drawMap(window);             // карта
-        player.draw(window);         // игрок
+        drawMap(window);
+        drawPortal(window);
+        player.draw(window);
         for (auto& e : entities)
             e->draw(window);
         drawMap(window);
