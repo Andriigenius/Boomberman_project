@@ -10,6 +10,7 @@
 #include "Bomb.h"
 #include "Enemy.h"
 #include "Explosion.h"
+#include "MainMenu.h"
 const int TILE_SIZE = 60;
 
 const std::vector<std::string> baseMap = {
@@ -158,6 +159,10 @@ int main() {
     sf::Clock clock;
     sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
+
+    MainMenu menu(window.getSize().x, window.getSize().y);
+    bool inMenu = true;
+
     map = baseMap;
     generateRandomBlocks(0.3333f);
     destructibleBlocksLeft = 0;
@@ -195,94 +200,114 @@ int main() {
         if (dt > 0.1f) dt = 0.1f;
 
         sf::Event event;
-        while (window.pollEvent(event))
+        while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed || (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
                 window.close();
 
-        bombCooldownTimer += dt;
-
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
-            sf::Vector2f center = {
-                player.getBounds().left + player.getBounds().width / 2.f,
-                player.getBounds().top + player.getBounds().height / 2.f
-            };
-
-            sf::Vector2i tile = sf::Vector2i(
-                static_cast<int>(center.x) / TILE_SIZE,
-                static_cast<int>(center.y) / TILE_SIZE
-            );
-
-            sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
-
-            entities.push_back(std::make_unique<Bomb>(
-                bombPos, 2.0f, TILE_SIZE,
-                [&player](sf::Vector2i center) {
-                    destroyMap(center, player, destructibleBlocksLeft);
-                }
-            ));
-
-            bombCooldownTimer = 0.f;
+            if (inMenu)
+                menu.handleEvent(event, window);
         }
+        if (inMenu)
+            menu.update(window);
 
-        if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
-            portalPos = { -1, -1 };
-            entities.clear();
-            map = baseMap;
-            generateRandomBlocks(0.3333f);
-
-            destructibleBlocksLeft = 0;
-            for (auto& row : map)
-                for (char c : row)
-                    if (c == '*') ++destructibleBlocksLeft;
-
-            player.setPos({ 2 * TILE_SIZE, 2 * TILE_SIZE });
-
-            for (int i = 0; i < 6; i++) {
-                sf::Vector2f enemySpawnPos;
-                bool found = false;
-                while (!found) {
-                    int x = rand() % map[0].size();
-                    int y = rand() % map.size();
-                    if (map[y][x] == ' ') {
-                        enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
-                        found = true;
-                    }
+        window.clear(); // Тёмный фон
+        if (inMenu) {
+            menu.draw(window);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter) ||
+                sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+                int option = menu.getSelectedOption();
+                if (option == 0) {
+                    // Start game
+                    inMenu = false;
+                    // здесь должен начаться твой игровой цикл
                 }
-                entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
+                else if (option == 1) {
+                    window.close();
+                }
             }
+            window.display();
+            continue;
         }
+        else
+        {
+            bombCooldownTimer += dt;
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
+                sf::Vector2f center = {
+                    player.getBounds().left + player.getBounds().width / 2.f,
+                    player.getBounds().top + player.getBounds().height / 2.f
+                };
+
+                sf::Vector2i tile = sf::Vector2i(
+                    static_cast<int>(center.x) / TILE_SIZE,
+                    static_cast<int>(center.y) / TILE_SIZE
+                );
+
+                sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
+
+                entities.push_back(std::make_unique<Bomb>(
+                    bombPos, 2.0f, TILE_SIZE,
+                    [&player](sf::Vector2i center) {
+                        destroyMap(center, player, destructibleBlocksLeft);
+                    }
+                ));
+
+                bombCooldownTimer = 0.f;
+            }
+
+            if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
+                portalPos = { -1, -1 };
+                entities.clear();
+                map = baseMap;
+                generateRandomBlocks(0.3333f);
+
+                destructibleBlocksLeft = 0;
+                for (auto& row : map)
+                    for (char c : row)
+                        if (c == '*') ++destructibleBlocksLeft;
+
+                player.setPos({ 2 * TILE_SIZE, 2 * TILE_SIZE });
+
+                for (int i = 0; i < 6; i++) {
+                    sf::Vector2f enemySpawnPos;
+                    bool found = false;
+                    while (!found) {
+                        int x = rand() % map[0].size();
+                        int y = rand() % map.size();
+                        if (map[y][x] == ' ') {
+                            enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
+                            found = true;
+                        }
+                    }
+                    entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
+                }
+            }
 
 
+            player.Moveset();
+            player.update(dt);
+            player.handleCollision(map);
 
+            for (auto& e : entities)
+                e->update(dt);
 
-
-
-        player.Moveset();
-        player.update(dt);
-        player.handleCollision(map);
-
-        for (auto& e : entities)
-            e->update(dt);
-
-        entities.erase(std::remove_if(entities.begin(), entities.end(),
-            [](const std::unique_ptr<Entity>& e) {
-                if (auto* enemy = dynamic_cast<Enemy*>(e.get())) return enemy->isDead;
-                if (auto* explosion = dynamic_cast<Explosion*>(e.get())) return explosion->isFinished();
-                return false;
-            }),
-            entities.end());
-
-        window.clear();
-        drawMap(window);
-        drawPortal(window);
-        player.draw(window);
-        for (auto& e : entities)
-            e->draw(window);
-        drawMap(window);
-        if (player.isDead)
-            window.draw(loseText);
-        window.display();
+            entities.erase(std::remove_if(entities.begin(), entities.end(),
+                [](const std::unique_ptr<Entity>& e) {
+                    if (auto* enemy = dynamic_cast<Enemy*>(e.get())) return enemy->isDead;
+                    if (auto* explosion = dynamic_cast<Explosion*>(e.get())) return explosion->isFinished();
+                    return false;
+                }),
+                entities.end());
+            drawMap(window);
+            drawPortal(window);
+            player.draw(window);
+            for (auto& e : entities)
+                e->draw(window);
+            drawMap(window);
+            if (player.isDead)
+                window.draw(loseText);
+            window.display();
+        }
     }
-
     return 0;
 }
