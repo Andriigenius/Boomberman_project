@@ -29,7 +29,7 @@ void generateRandomBlocks(float chance) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0.0, 1.0);
-
+    int counterOfBlocks = 0;
     for (int y = 0; y < map.size(); ++y) {
         for (int x = 0; x < map[y].size(); ++x) {
             if ((y == 2 && x == 1) || (y == 3 && x == 1) || (y == 2 && x == 2)) { continue; }
