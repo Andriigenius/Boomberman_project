@@ -12,6 +12,7 @@
 #include "Explosion.h"
 #include "MainMenu.h"
 #include "ScoreManager.h"
+#include "Bonus.h"
 
 const int TILE_SIZE = 60;
 
@@ -58,6 +59,7 @@ std::vector<std::string> map = {
 };
 
 std::vector<std::unique_ptr<Entity>> entities;
+std::vector<Bonus> bonuses;
 sf::Vector2i portalPos = { -1, -1 }; // Изначально портала нет
 int destructibleBlocksLeft = 0;      // Счетчик оставшихся разрушаемых блоков
 
@@ -73,29 +75,61 @@ void drawPortal(sf::RenderWindow& window) {
 }
 
 void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
-    int radius = 1;
+    int radius = player.getFireRadius();
     std::vector<sf::Vector2i> explosionTiles; // Все клетки с визуальным взрывом
     std::vector<sf::Vector2i> destroyed;      // Клетки с уничтоженными разрушаемыми блоками
+
+    static std::mt19937 ran(std::random_device{}());
+    std::uniform_real_distribution<float> disss(0.f, 1.f);
 
     // Создаёт визуальный взрыв в указанной клетке
     auto addExplosion = [&](int x, int y) {
         sf::Vector2f pos(x * TILE_SIZE, y * TILE_SIZE);
         explosionTiles.push_back({ x, y });
         entities.push_back(std::make_unique<Explosion>(pos, TILE_SIZE));
+    };
+    
+    // Проверяет клетку на разрушение, возвращает true если можно продолжать взрыв
+        auto tryDestroy = [&](int x, int y) -> bool {
+        if (map[y][x] == '#') return false;   // Не разрушать неразрушаемые блоки
+
+        addExplosion(x, y);
+
+        if (map[y][x] == '*') {
+            map[y][x] = ' ';            // Удаляем блок с карты
+            --destructibleBlocksLeft;   // Уменьшаем счётчик
+            sf::Vector2i blockPos(x, y);
+
+            static std::mt19937 rng(std::random_device{}());
+            std::uniform_real_distribution<float> dist(0.f, 1.f);
+
+            // Портал: если ещё не создан
+            if (portalPos.x == -1) {
+                float baseChance = 0.1f;
+
+                bool isLast = (destructibleBlocksLeft == 0); // это последний блок
+
+                if (dist(rng) < baseChance || isLast) {
+                    portalPos = blockPos;
+                    return false; // не генерировать бонус
+                }
+            }
+
+            // Бонус: если это не портал
+            if (portalPos != blockPos) {
+                if (dist(rng) < 0.2f) {
+                    BonusType type = static_cast<BonusType>(rand() % 3);
+                    sf::Vector2f bonusPos(x * TILE_SIZE, y * TILE_SIZE);
+                    bonuses.emplace_back(bonusPos, type);
+                }
+            }
+
+            return false;
+        }
+
+        return true;
         };
 
-    // Проверяет клетку на разрушение, возвращает true если можно продолжать взрыв
-    auto tryDestroy = [&](int x, int y) {
-        if (map[y][x] == '#') return false; // Не разрушать неразрушаемые блоки
-        addExplosion(x, y);
-        if (map[y][x] == '*') {
-            map[y][x] = ' ';                // Удаляем блок с карты
-            --destructibleBlocksLeft;       // Уменьшаем счётчик
-            destroyed.push_back({ x, y });  // Добавляем в список разрушенных
-            return false;                   // Остановить распространение
-        }
-        return true; // Пустая клетка — продолжаем
-        };
 
     // Центр взрыва
     addExplosion(center.x, center.y);
@@ -134,27 +168,7 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
         if (player.getBounds().intersects(tileRect))
             player.isDead = true;
     }
-
-    // Генерация портала в разрушенном блоке с шансом
-    if (!destroyed.empty() && portalPos.x == -1) {
-        static std::mt19937 rng(std::random_device{}());
-        std::uniform_real_distribution<float> dist(0.f, 1.f);
-
-        float baseChance = 0.1f; // Начальный шанс 5%
-        float chance = baseChance;
-        bool isLast = false;
-
-        for (size_t i = 0; i < destroyed.size(); ++i) {
-            if (lastBlock == 1)
-            {
-                isLast = true;
-            }
-            if (dist(rng) <= chance || isLast) {
-                portalPos = destroyed[i]; // Сохраняем координату портала
-                break;
-            }
-        }
-    }
+    
 }
 
 int main() {
@@ -174,7 +188,7 @@ int main() {
         for (char c : row)
             if (c == '*') ++destructibleBlocksLeft;
 
-    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 56.f, 56.f });
+    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 48.f, 48.f });
 
     for (int i = 0; i < 6; i++) {
         sf::Vector2f enemySpawnPos;
@@ -213,6 +227,7 @@ int main() {
 
 
     int score = 0;
+
 
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
@@ -271,6 +286,29 @@ int main() {
 
             continue; // пропускаем остальной игровой код
         }
+
+
+        for (auto it = bonuses.begin(); it != bonuses.end();) {
+            if (player.getBounds().intersects(it->getBounds())) {
+                switch (it->getType()) {
+                case BonusType::ExtraBomb:
+                    player.setMaxBomb(player.getMaxBombs() + 1);
+                    break;
+                case BonusType::FirePower:
+                    player.setFireRadius(player.getFireRadius() + 1);
+                    break;
+                case BonusType::SpeedUp:
+                    player.setSpeed(player.getSpeed() + 25.f);
+                    break;
+                }
+                it = bonuses.erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
+
+
 
         if (inMenu) {
             menu.update(window);
@@ -350,9 +388,16 @@ int main() {
                 }
             }
             if (player.isDead) {
+                player.setFireRadius(1);
+                player.setMaxBomb(1);
+                player.setSpeed(150.f);
+
+                bonuses.clear();
+
                 ScoreManager::saveScore(score);
                 gameOverScoreText.setString("Your Score: " + std::to_string(score));
                 gameOverHighText.setString("High Score: " + std::to_string(ScoreManager::loadHighScore()));
+
                 inGameOverMenu = true;
                 player.isDead = false; // сбрасываем, чтобы не зациклилось
                 continue;              // пропускаем кадр
@@ -395,6 +440,8 @@ int main() {
                 e->draw(window);
             drawMap(window);
             window.draw(scoreText);
+            for (auto& bonus : bonuses)
+                bonus.draw(window);
             window.display();
         }
     }

@@ -95,3 +95,33 @@ void Player::setPos(sf::Vector2f pos)
     position = pos;
     shape.setPosition(position);
 }
+
+
+void Player::setMaxBomb(int bomb) {
+    maxBombs = bomb;
+}
+
+void Player::setFireRadius(int radius) {
+    if (explosionRadius < 10)
+    explosionRadius = radius;
+}
+
+void Player::setSpeed(float speedy) {
+    if(speed < 250)
+    speed = speedy;
+}
+
+int Player::getMaxBombs() const
+{
+    return maxBombs;
+}
+
+int Player::getFireRadius() const
+{
+    return explosionRadius;
+}
+
+float Player::getSpeed() const
+{
+    return speed;
+}

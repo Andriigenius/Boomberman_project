@@ -13,6 +13,8 @@ private:
     float lastDt = 0.f;
     sf::Vector2f previousPosition;
 
+    int maxBombs = 1;
+    int explosionRadius = 1;
 public:
     void setPos(sf::Vector2f pos);
     bool isDead = false;
@@ -23,5 +25,13 @@ public:
     sf::Vector2i getTilePosition() const override;
     void handleCollision(const std::vector<std::string>& map);
     sf::FloatRect getBounds() const;
+
+    void setMaxBomb(int bomb);
+    void setFireRadius(int radius);
+    void setSpeed(float speedy);
+
+    int getMaxBombs() const;
+    int getFireRadius() const;
+    float getSpeed() const;
 };
 
