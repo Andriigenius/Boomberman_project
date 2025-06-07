@@ -4,7 +4,7 @@
 
 class MainMenu {
 public:
-    MainMenu(float width, float height);
+    MainMenu(float width, float height, int SEscreen);
 
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void update(const sf::RenderWindow& window);

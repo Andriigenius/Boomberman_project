@@ -11,6 +11,8 @@
 #include "Enemy.h"
 #include "Explosion.h"
 #include "MainMenu.h"
+#include "ScoreManager.h"
+
 const int TILE_SIZE = 60;
 
 const std::vector<std::string> baseMap = {
@@ -160,8 +162,10 @@ int main() {
     sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
 
-    MainMenu menu(window.getSize().x, window.getSize().y);
+    MainMenu menu(window.getSize().x, window.getSize().y, 0);
     bool inMenu = true;
+    MainMenu gameOverMenu(window.getSize().x, window.getSize().y, 1);
+    bool inGameOverMenu = false;
 
     map = baseMap;
     generateRandomBlocks(0.3333f);
@@ -195,6 +199,21 @@ int main() {
     loseText.setFillColor(sf::Color::Red);
     loseText.setPosition(500, 400);
 
+
+    sf::Text gameOverScoreText, gameOverHighText;
+    gameOverScoreText.setFont(font);
+    gameOverScoreText.setCharacterSize(30);
+    gameOverScoreText.setFillColor(sf::Color::White);
+    gameOverScoreText.setPosition(window.getSize().x / 2.f - 100, window.getSize().y / 2.f - 100);
+
+    gameOverHighText.setFont(font);
+    gameOverHighText.setCharacterSize(30);
+    gameOverHighText.setFillColor(sf::Color::Magenta);
+    gameOverHighText.setPosition(window.getSize().x / 2.f - 100, window.getSize().y / 2.f - 60);
+
+
+    int score = 0;
+
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
         if (dt > 0.1f) dt = 0.1f;
@@ -202,13 +221,61 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed || (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
+            {
                 window.close();
+            }
 
-            if (inMenu)
+            if (inMenu) {
                 menu.handleEvent(event, window);
+            }
+            
+            if (inGameOverMenu) {
+                gameOverMenu.handleEvent(event, window);
+            }
         }
-        if (inMenu)
+        
+        if (inGameOverMenu) {
+            gameOverMenu.handleEvent(event, window);
+
+            gameOverMenu.update(window);
+            window.clear(sf::Color(30, 0, 0)); // темный красный фон, например
+            gameOverMenu.draw(window);
+            window.draw(gameOverScoreText);
+            window.draw(gameOverHighText);
+            window.display();
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter) ||
+                sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+
+                int choice = gameOverMenu.getSelectedOption();
+                if (choice == 0) {
+                    // ⭯ Restart
+                    inGameOverMenu = false;
+                    inMenu = true; // возвращаемся в главное меню
+                    score = 0;
+
+                    entities.clear();
+                    portalPos = { -1, -1 };
+                    map = baseMap;
+                    generateRandomBlocks(0.3333f);
+                    destructibleBlocksLeft = 0;
+                    for (auto& row : map)
+                        for (char c : row)
+                            if (c == '*') ++destructibleBlocksLeft;
+                    player.setPos({ 2 * TILE_SIZE, 2 * TILE_SIZE });
+                }
+                else if (choice == 1) {
+                    window.close();
+                }
+            }
+
+            continue; // пропускаем остальной игровой код
+        }
+
+        if (inMenu) {
             menu.update(window);
+        }
+
 
         window.clear(); // Тёмный фон
         if (inMenu) {
@@ -282,7 +349,14 @@ int main() {
                     entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
                 }
             }
-
+            if (player.isDead) {
+                ScoreManager::saveScore(score);
+                gameOverScoreText.setString("Your Score: " + std::to_string(score));
+                gameOverHighText.setString("High Score: " + std::to_string(ScoreManager::loadHighScore()));
+                inGameOverMenu = true;
+                player.isDead = false; // сбрасываем, чтобы не зациклилось
+                continue;              // пропускаем кадр
+            }
 
             player.Moveset();
             player.update(dt);
@@ -292,20 +366,35 @@ int main() {
                 e->update(dt);
 
             entities.erase(std::remove_if(entities.begin(), entities.end(),
-                [](const std::unique_ptr<Entity>& e) {
-                    if (auto* enemy = dynamic_cast<Enemy*>(e.get())) return enemy->isDead;
-                    if (auto* explosion = dynamic_cast<Explosion*>(e.get())) return explosion->isFinished();
+                [&score](const std::unique_ptr<Entity>& e) {
+                    if (auto* enemy = dynamic_cast<Enemy*>(e.get())) {
+                        if (enemy->isDead) {
+                            score += 100; // +100 очков за врага
+                            return true;
+                        }
+                    }
+                    if (auto* explosion = dynamic_cast<Explosion*>(e.get()))
+                        return explosion->isFinished();
                     return false;
                 }),
                 entities.end());
+
+            sf::Text scoreText;
+            scoreText.setFont(font);
+            scoreText.setCharacterSize(24);
+            scoreText.setFillColor(sf::Color::White);
+            scoreText.setPosition(20, 10);
+
+            // В игровом режиме, перед window.display():
+            scoreText.setString("Score: " + std::to_string(score));
+
             drawMap(window);
             drawPortal(window);
             player.draw(window);
             for (auto& e : entities)
                 e->draw(window);
             drawMap(window);
-            if (player.isDead)
-                window.draw(loseText);
+            window.draw(scoreText);
             window.display();
         }
     }

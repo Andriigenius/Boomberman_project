@@ -1,14 +1,19 @@
 ﻿#include "MainMenu.h"
 #include <iostream>
 
-MainMenu::MainMenu(float width, float height) : selectedIndex(0) {
+MainMenu::MainMenu(float width, float height, int SEscreen) : selectedIndex(0) {
     if (!font.loadFromFile("fonts/ARIAL.TTF")) {
         std::cerr << "Ошибка загрузки шрифта!" << std::endl;
     }
 
     // Заголовок
     title.setFont(font);
-    title.setString("BOMBERMAN");
+    if (SEscreen == 0) {
+        title.setString("BOMBERMAN");
+    }
+    if (SEscreen == 1) {
+        title.setString("GAME OVER");
+    }
     title.setCharacterSize(64);
     title.setFillColor(sf::Color::White);
     title.setPosition(width / 2.f - 180, height / 6.f);
@@ -21,7 +26,10 @@ MainMenu::MainMenu(float width, float height) : selectedIndex(0) {
     hint.setPosition(width / 2.f - 160, height - 50);
 
     // Кнопки меню
-    std::vector<std::string> labels = { "Start Game", "Exit" };
+    std::vector<std::string> labels;
+    if (SEscreen == 0){ labels = { "Start Game", "Exit" }; }
+    if (SEscreen == 1){ labels = { "Restart", "Exit" }; }
+
     for (size_t i = 0; i < labels.size(); ++i) {
         sf::Text text;
         text.setFont(font);
@@ -63,7 +71,7 @@ void MainMenu::handleEvent(const sf::Event& event, const sf::RenderWindow& windo
         sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
         for (size_t i = 0; i < options.size(); ++i) {
             if (options[i].getGlobalBounds().contains(mousePos)) {
-                selectedIndex = i;
+                updateSelection(i);
             }
         }
     }
