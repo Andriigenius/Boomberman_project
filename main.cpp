@@ -240,6 +240,7 @@ int main() {
             gameOverMenu.update(window);
             window.clear(sf::Color(30, 0, 0)); // темный красный фон, например
             gameOverMenu.draw(window);
+
             window.draw(gameOverScoreText);
             window.draw(gameOverHighText);
             window.display();
@@ -253,7 +254,6 @@ int main() {
                     inGameOverMenu = false;
                     inMenu = true; // возвращаемся в главное меню
                     score = 0;
-
                     entities.clear();
                     portalPos = { -1, -1 };
                     map = baseMap;

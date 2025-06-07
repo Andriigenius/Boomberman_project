@@ -17,14 +17,21 @@ void ScoreManager::saveScore(int score) {
         std::ofstream out(filename);
         if (out)
             out << score;
+        int highScore = loadHighScore();
+        if (score > highScore) {
+            std::ofstream file(filename);
+            if (file.is_open()) {
+                file << score;
+            }
+        }
     }
 }
 
-int ScoreManager::loadHighScore() {
-    std::ifstream file(filename);
-    int score = 0;
-    if (file.is_open()) {
-        file >> score;
+    int ScoreManager::loadHighScore() {
+        std::ifstream file(filename);
+        int score = 0;
+        if (file.is_open()) {
+            file >> score;
+        }
+        return score;
     }
-    return score;
-}
