@@ -2,29 +2,31 @@
 #include <iostream>
 #include <random>
 
-
-void drawMap(sf::RenderWindow& window) {
+void drawMap(sf::RenderWindow& window, sf::Texture& IndestructibleBlockTexture, sf::Texture& destructibleBlockTexture) {
     sf::RectangleShape tileShape(sf::Vector2f(TILE_SIZE, TILE_SIZE));
+    sf::Sprite NotDestileSprite;
+    NotDestileSprite.setTexture(IndestructibleBlockTexture);
+    sf::Sprite DestileSprite;
+    DestileSprite.setTexture(destructibleBlockTexture);
 
     for (int y = 0; y < map.size(); ++y) {
         for (int x = 0; x < map[y].size(); ++x) {
             char tile = map[y][x];
 
-            if (tile == '#') {
-                tileShape.setFillColor(sf::Color::Blue);
+            if (tile == ' ') { continue; }
+            else if (tile == '#') {
+                NotDestileSprite.setPosition(x * TILE_SIZE, y * TILE_SIZE);
+                window.draw(NotDestileSprite); // рисуем неразрушаемый блок с текстурой
             }
             else if (tile == '*') {
-                tileShape.setFillColor(sf::Color::Cyan);
+                DestileSprite.setPosition(x * TILE_SIZE, y * TILE_SIZE);
+                window.draw(DestileSprite); // рисуем разрушаемый блок цветом
             }
-            else {
-                continue;
-            }
-
-            tileShape.setPosition(x * TILE_SIZE, y * TILE_SIZE);
-            window.draw(tileShape);
         }
     }
 }
+
+
 void generateRandomBlocks(float chance) {
     std::random_device rd;
     std::mt19937 gen(rd());

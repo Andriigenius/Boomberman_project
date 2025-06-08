@@ -5,9 +5,6 @@ Bonus::Bonus(sf::Vector2f pos, BonusType t) : type(t) {
     shape.setPosition(pos);
 
     switch (type) {
-    case BonusType::ExtraBomb:
-        shape.setFillColor(sf::Color::Blue);
-        break;
     case BonusType::FirePower:
         shape.setFillColor(sf::Color::Red);
         break;

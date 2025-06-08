@@ -37,26 +37,7 @@ const std::vector<std::string> baseMap = {
     "################################"
 };
 
-std::vector<std::string> map = {
-    "################################",
-    "################################",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "# # # # # # # # # # # # # # # ##",
-    "#                             ##",
-    "################################"
-};
+std::vector<std::string> map = baseMap;
 
 std::vector<std::unique_ptr<Entity>> entities;
 std::vector<Bonus> bonuses;
@@ -117,14 +98,14 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
 
             // Бонус: если это не портал
             if (portalPos != blockPos) {
-                if (dist(rng) < 0.2f) {
-                    BonusType type = static_cast<BonusType>(rand() % 3);
+                if (dist(rng) < 0.3f) {
+                    BonusType type = static_cast<BonusType>(rand() % 2);
                     sf::Vector2f bonusPos(x * TILE_SIZE, y * TILE_SIZE);
                     bonuses.emplace_back(bonusPos, type);
                 }
             }
 
-            return false;
+            return true;
         }
 
         return true;
@@ -171,7 +152,32 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
     
 }
 
+
+
+
+
 int main() {
+
+    sf::Texture backgroundTexture;
+    backgroundTexture.loadFromFile("textures/grass.png");
+    backgroundTexture.setRepeated(true);
+
+    sf::Sprite backgroundSprite;
+    backgroundSprite.setTexture(backgroundTexture);
+    backgroundSprite.setTextureRect(sf::IntRect(0, 0, 1920, 1080));
+
+
+    sf::Texture IndestructibleBlockTexture;
+    IndestructibleBlockTexture.loadFromFile("textures/IndestructibleBlock.png"); //textures/IndestructibleBlock.png
+
+    sf::Texture destructibleBlockTexture;
+    destructibleBlockTexture.loadFromFile("textures/destructibleBlock.png");
+
+    sf::Texture bombTexture;
+    bombTexture.loadFromFile("textures/Bomb.png");
+
+
+
     sf::Clock clock;
     sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "FullScreen", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
@@ -291,9 +297,6 @@ int main() {
         for (auto it = bonuses.begin(); it != bonuses.end();) {
             if (player.getBounds().intersects(it->getBounds())) {
                 switch (it->getType()) {
-                case BonusType::ExtraBomb:
-                    player.setMaxBomb(player.getMaxBombs() + 1);
-                    break;
                 case BonusType::FirePower:
                     player.setFireRadius(player.getFireRadius() + 1);
                     break;
@@ -335,30 +338,31 @@ int main() {
         }
         else
         {
+
             bombCooldownTimer += dt;
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
-                sf::Vector2f center = {
-                    player.getBounds().left + player.getBounds().width / 2.f,
-                    player.getBounds().top + player.getBounds().height / 2.f
-                };
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
+                    sf::Vector2f center = {
+                        player.getBounds().left + player.getBounds().width / 2.f,
+                        player.getBounds().top + player.getBounds().height / 2.f
+                    };
 
-                sf::Vector2i tile = sf::Vector2i(
-                    static_cast<int>(center.x) / TILE_SIZE,
-                    static_cast<int>(center.y) / TILE_SIZE
-                );
+                    sf::Vector2i tile = sf::Vector2i(
+                        static_cast<int>(center.x) / TILE_SIZE,
+                        static_cast<int>(center.y) / TILE_SIZE
+                    );
 
-                sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
+                        sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
 
-                entities.push_back(std::make_unique<Bomb>(
-                    bombPos, 2.0f, TILE_SIZE,
-                    [&player](sf::Vector2i center) {
-                        destroyMap(center, player, destructibleBlocksLeft);
-                    }
-                ));
+                    entities.push_back(std::make_unique<Bomb>(
+                        bombPos, 2.0f, TILE_SIZE,
+                        [&player](sf::Vector2i center) {
+                            destroyMap(center, player, destructibleBlocksLeft);
+                        }, bombTexture
+                    ));
+                    bombCooldownTimer = 0.f;
+                }
 
-                bombCooldownTimer = 0.f;
-            }
 
             if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
                 portalPos = { -1, -1 };
@@ -387,9 +391,9 @@ int main() {
                     entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
                 }
             }
+
             if (player.isDead) {
                 player.setFireRadius(1);
-                player.setMaxBomb(1);
                 player.setSpeed(150.f);
 
                 bonuses.clear();
@@ -433,12 +437,12 @@ int main() {
             // В игровом режиме, перед window.display():
             scoreText.setString("Score: " + std::to_string(score));
 
-            drawMap(window);
+            window.draw(backgroundSprite);
+            drawMap(window, IndestructibleBlockTexture, destructibleBlockTexture);
             drawPortal(window);
             player.draw(window);
             for (auto& e : entities)
                 e->draw(window);
-            drawMap(window);
             window.draw(scoreText);
             for (auto& bonus : bonuses)
                 bonus.draw(window);

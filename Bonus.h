@@ -3,7 +3,6 @@
 #include "Entity.h"
 
 enum class BonusType {
-    ExtraBomb,
     FirePower,
     SpeedUp
 };

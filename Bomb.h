@@ -11,10 +11,11 @@ private:
     bool exploded;
     float tileSize;
     sf::RectangleShape shape;
+    sf::Sprite sprite;
     std::function<void(sf::Vector2i)> onExplode;
 
 public:
-    Bomb(sf::Vector2f pos, float delaySec, float tileSize, std::function<void(sf::Vector2i)> onExplodeCallback);
+    Bomb(sf::Vector2f pos, float delaySec, float tileSize, std::function<void(sf::Vector2i)> onExplodeCallback, sf::Texture& bombTexture);
 
     void update(float dt) override;
     void draw(sf::RenderWindow& window) override;

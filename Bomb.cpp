@@ -1,13 +1,11 @@
 #include "Bomb.h"
 
-Bomb::Bomb(sf::Vector2f pos, float delaySec, float tileSz, std::function<void(sf::Vector2i)> onExplodeCallback)
+Bomb::Bomb(sf::Vector2f pos, float delaySec, float tileSz, std::function<void(sf::Vector2i)> onExplodeCallback, sf::Texture& bombTexture)
     : position(pos), delay(delaySec), timer(0.f), exploded(false), tileSize(tileSz), onExplode(onExplodeCallback) 
 {
-    shape.setSize(sf::Vector2f(tileSize, tileSize));
-    shape.setFillColor(sf::Color::Red);
-    shape.setOutlineColor(sf::Color::Red);
-    shape.setOutlineThickness(1.f);
-    shape.setPosition(position);
+
+    sprite.setTexture(bombTexture);
+    sprite.setPosition(position);
 }
 
 void Bomb::update(float dt) {
@@ -29,7 +27,7 @@ void Bomb::update(float dt) {
 
 void Bomb::draw(sf::RenderWindow& window) {
     if (!exploded) {
-        window.draw(shape);
+        window.draw(sprite);
     }
 }
 bool Bomb::isExploded() const {
