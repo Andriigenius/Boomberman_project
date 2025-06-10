@@ -13,6 +13,8 @@
 #include "MainMenu.h"
 #include "ScoreManager.h"
 #include "Bonus.h"
+#include "AnimatedExplosion.h"
+
 
 const int TILE_SIZE = 60;
 
@@ -43,6 +45,7 @@ std::vector<std::unique_ptr<Entity>> entities;
 std::vector<Bonus> bonuses;
 sf::Vector2i portalPos = { -1, -1 }; // Изначально портала нет
 int destructibleBlocksLeft = 0;      // Счетчик оставшихся разрушаемых блоков
+
 
 void drawPortal(sf::RenderWindow& window) {
     // Если портал не активен — ничего не рисуем
@@ -194,7 +197,8 @@ int main() {
         for (char c : row)
             if (c == '*') ++destructibleBlocksLeft;
 
-    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 48.f, 48.f });
+    Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 36.f, 48.f });
+    player.loadTextures();
 
     for (int i = 0; i < 6; i++) {
         sf::Vector2f enemySpawnPos;

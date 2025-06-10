@@ -14,15 +14,54 @@ Player::Player(sf::Vector2f startPos, sf::Vector2f size) {
 
 void Player::Moveset() {                   //движение
     direction = { 0.f, 0.f };
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) direction.y = -1.f;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) direction.y = 1.f;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) direction.x = -1.f;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) direction.x = 1.f;
+    isMoving = false;
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
+        currentDirection = Direction::Up;
+        direction.y = -1.f;
+        isMoving = true;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+        currentDirection = Direction::Down;
+        direction.y = 1.f;
+        isMoving = true;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
+        currentDirection = Direction::Left;
+        direction.x = -1.f;
+        isMoving = true;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+        currentDirection = Direction::Right;
+        direction.x = 1.f;
+        isMoving = true;
+    }
+
 }
 
 void Player::update(float dt) {
     lastDt = dt;
     previousPosition = position;
+
+    if (isMoving) {
+        frameTimer += dt;
+        if (frameTimer >= frameDuration) {
+            frameTimer = 0.f;
+            frame = (frame + 1) % 2; // 2 кадра
+        }
+    }
+    else {
+        frame = 0;
+    }
+
+    // Обновляем текстуру в зависимости от направления и кадра
+    switch (currentDirection) {
+    case Direction::Down:  sprite.setTexture(texturesDown[frame]); break;
+    case Direction::Up:    sprite.setTexture(texturesUp[frame]); break;
+    case Direction::Left:  sprite.setTexture(texturesLeft[frame]); break;
+    case Direction::Right: sprite.setTexture(texturesRight[frame]); break;
+    }
+
 }
 
 
@@ -81,8 +120,9 @@ sf::FloatRect Player::getBounds() const
 }
 
 void Player::draw(sf::RenderWindow& window) {
+    sprite.setPosition(position);
     shape.setPosition(position);
-    window.draw(shape);
+    window.draw(sprite);
 }
 
 sf::Vector2i Player::getTilePosition() const {
@@ -114,4 +154,20 @@ int Player::getFireRadius() const
 float Player::getSpeed() const
 {
     return speed;
+}
+
+void Player::loadTextures() {
+    texturesDown[0].loadFromFile("textures/LookS1.png");
+    texturesDown[1].loadFromFile("textures/LookS2.png");
+
+    texturesUp[0].loadFromFile("textures/LookB1.png");
+    texturesUp[1].loadFromFile("textures/LookB2.png");
+
+    texturesLeft[0].loadFromFile("textures/lookL1.png");
+    texturesLeft[1].loadFromFile("textures/lookL2.png");
+
+    texturesRight[0].loadFromFile("textures/lookR1.png");
+    texturesRight[1].loadFromFile("textures/lookR2.png");
+
+    sprite.setTexture(texturesDown[0]); // по умолчанию вниз
 }
