@@ -114,7 +114,7 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
 
             // Бонус: если это не портал
             if (portalPos != blockPos) {
-                if (dist(rng) < 0.3f) {
+                if (dist(rng) < 0.25f) {
                     BonusType type = static_cast<BonusType>(rand() % 2);
                     sf::Vector2f bonusPos(x * TILE_SIZE, y * TILE_SIZE);
                     bonuses.emplace_back(bonusPos, type);
@@ -290,7 +290,7 @@ int main() {
     bool inGameOverMenu = false;
 
     map = baseMap;
-    generateRandomBlocks(0.3333f);
+    generateRandomBlocks(0.25f);
     destructibleBlocksLeft = 0;
     for (auto& row : map)
         for (char c : row)
@@ -299,25 +299,42 @@ int main() {
     Player player({ 2 * TILE_SIZE, 2 * TILE_SIZE }, { 36.f, 48.f });
     player.loadTextures();
 
-    for (int i = 0; i < 6; i++) {
-        sf::Vector2f enemySpawnPos;
-        bool found = false;
-        while (!found) {
-            int x = rand() % map[0].size();
-            int y = rand() % map.size();
+    sf::Vector2i playerStartTile1{ 2, 2 }; // если игрок стартует на (2,2) в тайлах
+    sf::Vector2i playerStartTile2{ 2, 3 }; // если игрок стартует на (2,2) в тайлах
+    sf::Vector2i playerStartTile3{ 3, 2 }; // если игрок стартует на (2,2) в тайлах
+
+    // 1) Собираем все пустые тайлы, кроме стартового
+    std::vector<sf::Vector2i> freeTiles;
+    for (int y = 0; y < map.size(); ++y) {
+        for (int x = 0; x < map[y].size(); ++x) {
             if (map[y][x] == ' ') {
-                enemySpawnPos = sf::Vector2f(x * TILE_SIZE, y * TILE_SIZE);
-                found = true;
+                sf::Vector2i t{ x, y };
+                if (t != playerStartTile1 && t != playerStartTile2 && t != playerStartTile3)  // не берём стартовую клетку игрока
+                    freeTiles.push_back(t);
             }
         }
-        entities.push_back(std::make_unique<Enemy>(enemySpawnPos, map));
+    }
+
+    // 2) Перемешиваем их случайно
+    std::mt19937 rng{ std::random_device{}() };
+    std::shuffle(freeTiles.begin(), freeTiles.end(), rng);
+
+    // 3) Спавним ровно 6 или меньше, если свободных клеток меньше
+    int spawnCount = std::min(6, (int)freeTiles.size());
+    for (int i = 0; i < spawnCount; ++i) {
+        sf::Vector2i tile = freeTiles[i];
+        sf::Vector2f spawnPos(tile.x * TILE_SIZE,
+            tile.y * TILE_SIZE);
+        entities.push_back(
+            std::make_unique<Enemy>(spawnPos, map)
+        );
     }
 
     float bombCooldown = 2.0f;
     float bombCooldownTimer = 0.0f;
 
     sf::Font font;
-    font.loadFromFile("fonts/ARIAL.TTF");
+    font.loadFromFile("fonts/Square_One_Bold.ttf");
     sf::Text loseText("GAME OVER", font, 100);
     loseText.setFillColor(sf::Color::Red);
     loseText.setPosition(500, 400);
@@ -351,10 +368,25 @@ int main() {
 
             if (inMenu) {
                 menu.handleEvent(event, window);
+                
             }
 
             if (inGameOverMenu) {
                 gameOverMenu.handleEvent(event, window);
+            }
+        }
+
+        for (auto& e : entities) e->update(dt);
+        // … удаляем взрывы, собираем бонусы и т.п …
+
+        // здесь вставляем проверку столкновений:
+        for (auto& ent : entities) {
+            if (auto* enemy = dynamic_cast<Enemy*>(ent.get())) {
+                if (!enemy->isDead && enemy->getBounds().intersects(player.getBounds())) {
+                    inMenu = false;
+                    inGameOverMenu = true;
+                    break;
+                }
             }
         }
 
@@ -374,19 +406,50 @@ int main() {
 
                 int choice = gameOverMenu.getSelectedOption();
                 if (choice == 0) {
-                    // ⭯ Restart
+                    // Рестарт
                     inGameOverMenu = false;
                     inMenu = true; // возвращаемся в главное меню
                     score = 0;
                     entities.clear();
                     portalPos = { -1, -1 };
                     map = baseMap;
-                    generateRandomBlocks(0.3333f);
+                    generateRandomBlocks(0.25f);
                     destructibleBlocksLeft = 0;
                     for (auto& row : map)
                         for (char c : row)
                             if (c == '*') ++destructibleBlocksLeft;
                     player.setPos({ 2 * TILE_SIZE, 2 * TILE_SIZE });
+
+
+                    {// 1) Собираем все пустые тайлы, кроме стартового
+                        std::vector<sf::Vector2i> freeTiles;
+                        for (int y = 0; y < map.size(); ++y) {
+                            for (int x = 0; x < map[y].size(); ++x) {
+                                if (map[y][x] == ' ') {
+                                    sf::Vector2i t{ x, y };
+                                    if (t != playerStartTile1 && t != playerStartTile2 && t != playerStartTile3)  // не берём стартовую клетку игрока
+                                        freeTiles.push_back(t);
+                                }
+                            }
+                        }
+
+                        // 2) Перемешиваем их случайно
+                        std::mt19937 rng{ std::random_device{}() };
+                        std::shuffle(freeTiles.begin(), freeTiles.end(), rng);
+
+                        // 3) Спавним ровно 6 или меньше, если свободных клеток меньше
+                        int spawnCount = std::min(6, (int)freeTiles.size());
+                        for (int i = 0; i < spawnCount; ++i) {
+                            sf::Vector2i tile = freeTiles[i];
+                            sf::Vector2f spawnPos(tile.x * TILE_SIZE,
+                                tile.y * TILE_SIZE);
+                            entities.push_back(
+                                std::make_unique<Enemy>(spawnPos, map)
+                            );
+                        }
+                    } //появление врагов
+
+
                 }
                 else if (choice == 1) {
                     window.close();
@@ -476,7 +539,7 @@ int main() {
                 bonuses.clear();
                 entities.clear();
                 map = baseMap;
-                generateRandomBlocks(0.3333f);
+                generateRandomBlocks(0.25f);
 
                 destructibleBlocksLeft = 0;
                 for (auto& row : map)
