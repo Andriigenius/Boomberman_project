@@ -383,8 +383,9 @@ int main() {
         for (auto& ent : entities) {
             if (auto* enemy = dynamic_cast<Enemy*>(ent.get())) {
                 if (!enemy->isDead && enemy->getBounds().intersects(player.getBounds())) {
-                    inMenu = false;
-                    inGameOverMenu = true;
+                    player.isDead = true;
+                    /*inMenu = false;
+                    inGameOverMenu = true;*/
                     break;
                 }
             }
