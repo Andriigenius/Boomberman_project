@@ -171,3 +171,5 @@ void Player::loadTextures() {
 
     sprite.setTexture(texturesDown[0]); // по умолчанию вниз
 }
+
+

@@ -6,7 +6,7 @@ MainMenu::MainMenu(float width, float height, int SEscreen) : selectedIndex(0) {
         std::cerr << "Ошибка загрузки шрифта!" << std::endl;
     }
 
-    if (!UsualFont.loadFromFile("fonts/Robot_Crush.ttf")) {
+    if (!UsualFont.loadFromFile("fonts/Square.ttf")) {
         std::cerr << "Ошибка загрузки шрифта!" << std::endl;
     }
 
@@ -56,8 +56,8 @@ MainMenu::MainMenu(float width, float height, int SEscreen) : selectedIndex(0) {
 
     // Кнопки меню
     std::vector<std::string> labels;
-    if (SEscreen == 0){ labels = { "Start Game", "Exit" }; }
-    if (SEscreen == 1){ labels = { "Restart", "Exit" }; }
+    if (SEscreen == 0) { labels = { "Start Game", "Instruction", "Exit" }; }
+    if (SEscreen == 1) { labels = { "Restart", "Exit" }; }
 
     for (size_t i = 0; i < labels.size(); ++i) {
         sf::Text text;
@@ -121,9 +121,9 @@ void MainMenu::update(const sf::RenderWindow& window) {
 
 void MainMenu::draw(sf::RenderWindow& window) {
     window.draw(bgSprite);
-    
+
     window.draw(title);
-    for (const auto& option : options) 
+    for (const auto& option : options)
         window.draw(option);
     window.draw(hint);
 }

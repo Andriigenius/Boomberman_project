@@ -19,7 +19,7 @@ private:
     std::vector<sf::Text> options;
     int selectedIndex;
 
-    int screenType;                         
+    int screenType;
     std::vector<sf::Text> instructions;
     sf::Texture bgTexture;
     sf::Sprite  bgSprite;

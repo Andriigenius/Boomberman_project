@@ -17,6 +17,12 @@
 
 
 const int TILE_SIZE = 60;
+#include <SFML/Graphics.hpp>
+#include <vector>
+#include <string>
+#include <iostream>
+
+
 
 const std::vector<std::string> baseMap = {
     "################################",
@@ -53,9 +59,16 @@ void drawPortal(sf::RenderWindow& window) {
 
     // Создаём фиолетовый квадрат размером в 1 тайл
     sf::RectangleShape shape(sf::Vector2f(TILE_SIZE, TILE_SIZE));
-    shape.setFillColor(sf::Color::Magenta);
+    //shape.setFillColor(sf::Color::Magenta);
+
+    sf::Texture portalTex;
+    portalTex.loadFromFile("textures/portal.png");
+
+    sf::Sprite portalSprite;
+    portalSprite.setTexture(portalTex);
     shape.setPosition(portalPos.x * TILE_SIZE, portalPos.y * TILE_SIZE);
-    window.draw(shape);
+    portalSprite.setPosition(portalPos.x * TILE_SIZE, portalPos.y * TILE_SIZE);
+    window.draw(portalSprite);
 }
 
 void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
@@ -71,10 +84,10 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
         sf::Vector2f pos(x * TILE_SIZE, y * TILE_SIZE);
         explosionTiles.push_back({ x, y });
         entities.push_back(std::make_unique<Explosion>(pos, TILE_SIZE));
-    };
-    
+        };
+
     // Проверяет клетку на разрушение, возвращает true если можно продолжать взрыв
-        auto tryDestroy = [&](int x, int y) -> bool {
+    auto tryDestroy = [&](int x, int y) -> bool {
         if (map[y][x] == '#') return false;   // Не разрушать неразрушаемые блоки
 
         addExplosion(x, y);
@@ -152,15 +165,93 @@ void destroyMap(sf::Vector2i center, Player& player, int lastBlock) {
         if (player.getBounds().intersects(tileRect))
             player.isDead = true;
     }
-    
+
+}
+
+// Вызывается из main при выборе опции «Instructions»
+void showInstructions(sf::RenderWindow& window) {
+    // 1) Шрифт
+    sf::Font font;
+    if (!font.loadFromFile("fonts/Square.ttf")) {
+        std::cerr << "Failed to load instructions font\n";
+        return;
+    }
+
+    // 2) Текст строк инструкции
+    std::vector<std::string> raw = {
+        "HOW TO PLAY:",
+        "   ",
+        "- Use WASD to move -",
+        "- Press SPACE to drop bombs -",
+        "- Destroy enemies and blocks -",
+        "- Find the portal to advance -"
+    };
+    std::vector<sf::Text> lines;
+    float W = float(window.getSize().x), H = float(window.getSize().y);
+    for (size_t i = 0; i < raw.size(); ++i) {
+        sf::Text t(raw[i], font, 44);
+        t.setFillColor(sf::Color::White);
+        auto b = t.getLocalBounds();
+        t.setOrigin(b.left + b.width / 2.f, b.top);
+        t.setPosition(W / 2.f, H / 4.f + i * 40.f);
+        lines.push_back(t);
+    }
+
+    // 3) Кнопка «Back»
+    sf::Text back("Back", font, 36);
+    back.setFillColor(sf::Color::Yellow);
+    {
+        auto b = back.getLocalBounds();
+        back.setOrigin(b.left + b.width / 2.f, b.top);
+        back.setPosition(W / 2.f, H * 3.f / 4.f);
+    }
+
+    // 4) Собственный mini-loop
+    while (window.isOpen()) {
+        sf::Event ev;
+        while (window.pollEvent(ev)) {
+            // закрыть приложение
+            if (ev.type == sf::Event::Closed)
+                window.close();
+
+            // клик ЛКМ
+            if (ev.type == sf::Event::MouseButtonReleased &&
+                ev.mouseButton.button == sf::Mouse::Left)
+            {
+                sf::Vector2f mp = window.mapPixelToCoords(
+                    { ev.mouseButton.x, ev.mouseButton.y });
+                if (back.getGlobalBounds().contains(mp)) {
+                    // выход из инструкции - обратно в main()
+                    return;
+                }
+            }
+
+            // Esc или Enter тоже возвращают
+            if (ev.type == sf::Event::KeyPressed) {
+                if (ev.key.code == sf::Keyboard::Escape ||
+                    ev.key.code == sf::Keyboard::Enter)
+                {
+                    return;
+                }
+            }
+        }
+
+        // 5) Отрисовка
+        window.clear(sf::Color(30, 30, 30));
+        for (auto& t : lines)  window.draw(t);
+        window.draw(back);
+        window.display();
+    }
 }
 
 
 
-
-
 int main() {
-
+    sf::Font square;
+    if (!square.loadFromFile("fonts/Square.ttf")) {
+        std::cerr << "Failed to load instructions font\n";
+        return 0;
+    }
     sf::Texture backgroundTexture;
     backgroundTexture.loadFromFile("textures/grass.png");
     backgroundTexture.setRepeated(true);
@@ -233,15 +324,15 @@ int main() {
 
 
     sf::Text gameOverScoreText, gameOverHighText;
-    gameOverScoreText.setFont(font);
-    gameOverScoreText.setCharacterSize(30);
+    gameOverScoreText.setFont(square);
+    gameOverScoreText.setCharacterSize(35);
     gameOverScoreText.setFillColor(sf::Color::White);
-    gameOverScoreText.setPosition(window.getSize().x / 2.f - 100, window.getSize().y / 2.f - 100);
+    gameOverScoreText.setPosition(window.getSize().x / 2.f - 130, window.getSize().y / 2.f - 140);
 
-    gameOverHighText.setFont(font);
-    gameOverHighText.setCharacterSize(30);
+    gameOverHighText.setFont(square);
+    gameOverHighText.setCharacterSize(35);
     gameOverHighText.setFillColor(sf::Color::Magenta);
-    gameOverHighText.setPosition(window.getSize().x / 2.f - 100, window.getSize().y / 2.f - 60);
+    gameOverHighText.setPosition(window.getSize().x / 2.f - 150, window.getSize().y / 2.f - 200);
 
 
     int score = 0;
@@ -261,12 +352,12 @@ int main() {
             if (inMenu) {
                 menu.handleEvent(event, window);
             }
-            
+
             if (inGameOverMenu) {
                 gameOverMenu.handleEvent(event, window);
             }
         }
-        
+
         if (inGameOverMenu) {
             gameOverMenu.handleEvent(event, window);
 
@@ -342,6 +433,10 @@ int main() {
                     // здесь должен начаться мой игровой цикл
                 }
                 else if (option == 1) {
+                    showInstructions(window);
+                }
+                else if (option == 2)
+                {
                     window.close();
                 }
             }
@@ -353,27 +448,27 @@ int main() {
 
             bombCooldownTimer += dt;
 
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
-                    sf::Vector2f center = {
-                        player.getBounds().left + player.getBounds().width / 2.f,
-                        player.getBounds().top + player.getBounds().height / 2.f
-                    };
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && bombCooldownTimer >= bombCooldown) {
+                sf::Vector2f center = {
+                    player.getBounds().left + player.getBounds().width / 2.f,
+                    player.getBounds().top + player.getBounds().height / 2.f
+                };
 
-                    sf::Vector2i tile = sf::Vector2i(
-                        static_cast<int>(center.x) / TILE_SIZE,
-                        static_cast<int>(center.y) / TILE_SIZE
-                    );
+                sf::Vector2i tile = sf::Vector2i(
+                    static_cast<int>(center.x) / TILE_SIZE,
+                    static_cast<int>(center.y) / TILE_SIZE
+                );
 
-                        sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
+                sf::Vector2f bombPos(tile.x * TILE_SIZE, tile.y * TILE_SIZE);
 
-                    entities.push_back(std::make_unique<Bomb>(
-                        bombPos, 2.0f, TILE_SIZE,
-                        [&player](sf::Vector2i center) {
-                            destroyMap(center, player, destructibleBlocksLeft);
-                        }, bombTexture
-                    ));
-                    bombCooldownTimer = 0.f;
-                }
+                entities.push_back(std::make_unique<Bomb>(
+                    bombPos, 2.0f, TILE_SIZE,
+                    [&player](sf::Vector2i center) {
+                        destroyMap(center, player, destructibleBlocksLeft);
+                    }, bombTexture
+                ));
+                bombCooldownTimer = 0.f;
+            }
 
 
             if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
@@ -442,10 +537,10 @@ int main() {
                 entities.end());
 
             sf::Text scoreText;
-            scoreText.setFont(font);
-            scoreText.setCharacterSize(24);
+            scoreText.setFont(square);
+            scoreText.setCharacterSize(34);
             scoreText.setFillColor(sf::Color::White);
-            scoreText.setPosition(20, 10);
+            scoreText.setPosition(880, 8);
 
             // В игровом режиме, перед window.display():
             scoreText.setString("Score: " + std::to_string(score));
