@@ -142,7 +142,7 @@ void Player::setFireRadius(int radius) {
 }
 
 void Player::setSpeed(float speedy) {
-    if(speed < 251)
+    if(speedy < 251)
     speed = speedy;
 }
 

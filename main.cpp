@@ -169,6 +169,14 @@ int main() {
     backgroundSprite.setTexture(backgroundTexture);
     backgroundSprite.setTextureRect(sf::IntRect(0, 0, 1920, 1080));
 
+    sf::Texture menuBackgroundTexture;
+    menuBackgroundTexture.loadFromFile("textures/IndestructibleBlock.png");
+    menuBackgroundTexture.setRepeated(true);
+
+    sf::Sprite menuBackgroundSprite;
+    menuBackgroundSprite.setTexture(menuBackgroundTexture);
+    menuBackgroundSprite.setTextureRect(sf::IntRect(0, 0, 1920, 1080));
+
 
     sf::Texture IndestructibleBlockTexture;
     IndestructibleBlockTexture.loadFromFile("textures/IndestructibleBlock.png"); //textures/IndestructibleBlock.png
@@ -331,7 +339,7 @@ int main() {
                 if (option == 0) {
                     // Start game
                     inMenu = false;
-                    // здесь должен начаться твой игровой цикл
+                    // здесь должен начаться мой игровой цикл
                 }
                 else if (option == 1) {
                     window.close();
@@ -370,6 +378,7 @@ int main() {
 
             if (portalPos.x != -1 && player.getTilePosition() == portalPos) {
                 portalPos = { -1, -1 };
+                bonuses.clear();
                 entities.clear();
                 map = baseMap;
                 generateRandomBlocks(0.3333f);

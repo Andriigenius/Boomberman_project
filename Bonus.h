@@ -17,7 +17,12 @@ public:
     sf::FloatRect getBounds() const;
     BonusType getType() const;
 
+    static sf::Texture s_fireTexture;
+    static sf::Texture s_speedTexture;
+    static bool        s_texturesLoaded;
 private:
     BonusType type;
-    sf::RectangleShape shape;
+    sf::Sprite sprite;
+
+    
 };
